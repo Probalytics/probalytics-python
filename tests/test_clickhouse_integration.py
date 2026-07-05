@@ -84,6 +84,8 @@ def test_sample_data_matches_production_shapes(client: ProbalyticsClient) -> Non
 
 def test_markets_filters_accept_arrays_against_clickhouse(client: ProbalyticsClient) -> None:
     markets = client.markets(
+        market_id=[MARKET_A, MARKET_B],
+        market_platform_id=["0xmarket", "KXBTC-26JUN-T50000"],
         platform=["POLYMARKET", "KALSHI"],
         status=["ACTIVE", "PAUSED"],
         limit=10,
@@ -94,7 +96,12 @@ def test_markets_filters_accept_arrays_against_clickhouse(client: ProbalyticsCli
 
 
 def test_markets_frame_reads_sample_data(client: ProbalyticsClient) -> None:
-    markets = client.markets_frame(platform=["POLYMARKET", "KALSHI"], status=["ACTIVE", "PAUSED"])
+    markets = client.markets_frame(
+        market_id=[MARKET_A, MARKET_B],
+        market_platform_id=["0xmarket", "KXBTC-26JUN-T50000"],
+        platform=["POLYMARKET", "KALSHI"],
+        status=["ACTIVE", "PAUSED"],
+    )
 
     assert isinstance(markets, pd.DataFrame)
     assert set(markets["platform_id"]) == {"0xmarket", "KXBTC-26JUN-T50000"}

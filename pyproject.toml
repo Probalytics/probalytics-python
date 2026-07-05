@@ -10,13 +10,16 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "clickhouse-driver>=0.2.10",
-    "pandas>=2",
     "polars>=1",
     "pydantic>=2",
 ]
 
 [project.optional-dependencies]
+pandas = [
+    "pandas>=2",
+]
 test = [
+    "pandas>=2",
     "pytest>=8",
     "testcontainers>=4.12",
 ]
@@ -26,3 +29,14 @@ testpaths = ["tests"]
 markers = [
     "integration: tests that start Docker containers or use external services",
 ]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/README.md",
+    "/pyproject.toml",
+    "/src",
+    "/tests",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/probalytics"]

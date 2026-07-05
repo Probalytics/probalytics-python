@@ -89,6 +89,8 @@ class ClickHouseClient:
         end_time: datetime | str | None = None,
         status: StringFilter = None,
         platform: StringFilter = None,
+        market_id: IDFilter = None,
+        market_platform_id: StringFilter = None,
         limit: int = 1000,
         max_rows: int | None = None,
     ) -> list[Market]:
@@ -99,6 +101,8 @@ class ClickHouseClient:
                 ("created_at <= %(end_time)s", "end_time", normalize_time(end_time)),
                 _filter("status", "status", status),
                 _filter("platform", "platform", platform),
+                _filter("id", "market_id", market_id),
+                _filter("platform_id", "market_platform_id", market_platform_id),
             ]
         )
         params["limit"] = limit
@@ -206,6 +210,8 @@ class ClickHouseClient:
         end_time: datetime | str | None = None,
         status: StringFilter = None,
         platform: StringFilter = None,
+        market_id: IDFilter = None,
+        market_platform_id: StringFilter = None,
         limit: int = 1000,
         max_rows: int | None = None,
         frame: FrameKind = "polars",
@@ -217,6 +223,8 @@ class ClickHouseClient:
                 ("created_at <= %(end_time)s", "end_time", normalize_time(end_time)),
                 _filter("status", "status", status),
                 _filter("platform", "platform", platform),
+                _filter("id", "market_id", market_id),
+                _filter("platform_id", "market_platform_id", market_platform_id),
             ]
         )
         params["limit"] = limit

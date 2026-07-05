@@ -256,13 +256,40 @@ def test_client_from_env_reports_missing_credentials(monkeypatch) -> None:
 
 def test_markets_supports_array_filters() -> None:
     client = clickhouse_with_recorder()
+    market_ids = [
+        UUID("550e8400-e29b-41d4-a716-446655440000"),
+        UUID("550e8400-e29b-41d4-a716-446655440002"),
+    ]
 
-    client.markets(platform=["POLYMARKET", "KALSHI"], status=["ACTIVE", "PAUSED"])
+    client.markets(
+        market_id=market_ids,
+        market_platform_id=["0xmarket", "0xother"],
+        platform=["POLYMARKET", "KALSHI"],
+        status=["ACTIVE", "PAUSED"],
+    )
 
+    assert "id IN %(market_id)s" in client.client.query
+    assert "platform_id IN %(market_platform_id)s" in client.client.query
     assert "platform IN %(platform)s" in client.client.query
     assert "status IN %(status)s" in client.client.query
+    assert client.client.params["market_id"] == tuple(str(value) for value in market_ids)
+    assert client.client.params["market_platform_id"] == ("0xmarket", "0xother")
     assert client.client.params["platform"] == ("POLYMARKET", "KALSHI")
     assert client.client.params["status"] == ("ACTIVE", "PAUSED")
+
+
+def test_markets_keeps_scalar_market_filters_as_equals() -> None:
+    client = clickhouse_with_recorder()
+    market_id = UUID("550e8400-e29b-41d4-a716-446655440000")
+
+    client.markets(market_id=market_id, market_platform_id="0xmarket", platform="POLYMARKET")
+
+    assert "id = %(market_id)s" in client.client.query
+    assert "platform_id = %(market_platform_id)s" in client.client.query
+    assert "platform = %(platform)s" in client.client.query
+    assert client.client.params["market_id"] == str(market_id)
+    assert client.client.params["market_platform_id"] == "0xmarket"
+    assert client.client.params["platform"] == "POLYMARKET"
 
 
 def test_fills_supports_array_filters() -> None:
