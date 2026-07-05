@@ -15,6 +15,8 @@ Recommended GitHub rules for `main` on this public SDK:
 - Block force pushes.
 - Block branch deletion.
 - Restrict direct pushes to repository administrators or a release automation actor.
+- Allow Dependabot to open pull requests for dependency and GitHub Actions
+  updates, but require the same status checks before merge.
 
 These rules are configured in GitHub repository settings or through the GitHub
 rulesets API; they are not applied by files committed to the repository.
