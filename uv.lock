@@ -481,13 +481,16 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "clickhouse-driver" },
-    { name = "pandas" },
     { name = "polars" },
     { name = "pydantic" },
 ]
 
 [package.optional-dependencies]
+pandas = [
+    { name = "pandas" },
+]
 test = [
+    { name = "pandas" },
     { name = "pytest" },
     { name = "testcontainers" },
 ]
@@ -495,13 +498,14 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "clickhouse-driver", specifier = ">=0.2.10" },
-    { name = "pandas", specifier = ">=2" },
+    { name = "pandas", marker = "extra == 'pandas'", specifier = ">=2" },
+    { name = "pandas", marker = "extra == 'test'", specifier = ">=2" },
     { name = "polars", specifier = ">=1" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8" },
     { name = "testcontainers", marker = "extra == 'test'", specifier = ">=4.12" },
 ]
-provides-extras = ["test"]
+provides-extras = ["pandas", "test"]
 
 [[package]]
 name = "pydantic"

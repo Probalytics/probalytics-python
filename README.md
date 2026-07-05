@@ -12,6 +12,13 @@ pip install probalytics
 
 The client requires Python 3.11 or newer.
 
+Polars support is included by default. To use `frame="pandas"`, install the
+pandas extra:
+
+```bash
+pip install "probalytics[pandas]"
+```
+
 ## Connect
 
 ```python
@@ -67,6 +74,7 @@ Markets are returned as typed Pydantic models.
 
 ```python
 markets = client.markets(
+    market_platform_id="0xmarket",
     platform="POLYMARKET",
     status="ACTIVE",
     limit=100,
@@ -93,6 +101,7 @@ values.
 
 ```python
 markets = client.markets(
+    market_platform_id=["0xmarket", "KXBTC-26JUN-T50000"],
     platform=["POLYMARKET", "KALSHI"],
     status=["ACTIVE", "PAUSED"],
 )
@@ -182,7 +191,8 @@ Snapshots include market identifiers, outcome, bids, asks, and timestamp.
 ## Choose Polars or pandas
 
 All dataframe methods return Polars by default. Set `frame="pandas"` when
-creating the client to use pandas globally.
+creating the client to use pandas globally. pandas support is optional; install
+it with `pip install "probalytics[pandas]"`.
 
 ```python
 client = ProbalyticsClient.from_clickhouse(
@@ -235,6 +245,8 @@ directly into SQL strings.
 - `end_time`
 - `status` or list of statuses
 - `platform` or list of platforms
+- `market_id` or list of market IDs
+- `market_platform_id` or list of market platform IDs
 - `limit`
 - `max_rows`
 

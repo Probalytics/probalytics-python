@@ -113,6 +113,8 @@ class ProbalyticsClient:
         end_time: datetime | str | None = None,
         status: StringFilter = None,
         platform: StringFilter = None,
+        market_id: IDFilter = None,
+        market_platform_id: StringFilter = None,
         limit: int = 1000,
         max_rows: int | None = None,
     ) -> list[Market]:
@@ -121,6 +123,8 @@ class ProbalyticsClient:
             end_time=end_time,
             status=status,
             platform=platform,
+            market_id=market_id,
+            market_platform_id=market_platform_id,
             limit=limit,
             max_rows=max_rows,
         )

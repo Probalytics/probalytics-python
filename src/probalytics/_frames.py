@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
@@ -31,16 +32,20 @@ def normalize_time(value: datetime | str | None) -> datetime | None:
 def dataframe_to_frame(df: Any, frame: FrameKind = "polars") -> Any:
     frame = validate_frame(frame)
     if frame == "polars":
-        import pandas as pd
         import polars as pl
 
         if isinstance(df, pl.DataFrame):
             return df
-        if isinstance(df, pd.DataFrame):
+        pandas_dataframe = _loaded_class("pandas", "DataFrame")
+        if pandas_dataframe is not None and isinstance(df, pandas_dataframe):
             return pl.from_pandas(df)
         return pl.DataFrame(df)
     if frame == "pandas":
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError as error:
+            raise ImportError("pandas support requires installing probalytics[pandas]") from error
+
         import polars as pl
 
         if isinstance(df, pd.DataFrame):
@@ -49,3 +54,9 @@ def dataframe_to_frame(df: Any, frame: FrameKind = "polars") -> Any:
             return df.to_pandas()
         return pd.DataFrame(df)
     raise ValueError("frame must be 'polars' or 'pandas'")
+
+
+def _loaded_class(module_name: str, class_name: str) -> type[Any] | None:
+    module = sys.modules.get(module_name)
+    value = getattr(module, class_name, None)
+    return value if isinstance(value, type) else None
