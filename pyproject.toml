@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "probalytics"
+version = "0.1.0"
+description = "Python client for Probalytics market, fill, and orderbook data"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "clickhouse-driver>=0.2.10",
+    "pandas>=2",
+    "polars>=1",
+    "pydantic>=2",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+    "testcontainers>=4.12",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that start Docker containers or use external services",
+]
