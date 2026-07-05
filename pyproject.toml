@@ -8,11 +8,38 @@ version = "0.1.0"
 description = "Python client for Probalytics market, fill, and orderbook data"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    { name = "Probalytics" },
+]
+maintainers = [
+    { name = "Probalytics" },
+]
+keywords = [
+    "clickhouse",
+    "market-data",
+    "polars",
+    "prediction-markets",
+    "probalytics",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
 dependencies = [
     "clickhouse-driver>=0.2.10",
     "polars>=1",
     "pydantic>=2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Probalytics/probalytics-python"
+Repository = "https://github.com/Probalytics/probalytics-python"
+Issues = "https://github.com/Probalytics/probalytics-python/issues"
 
 [project.optional-dependencies]
 pandas = [
