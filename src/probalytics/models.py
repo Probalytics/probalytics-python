@@ -14,8 +14,6 @@ from probalytics._frames import FrameKind
 class Platform(StrEnum):
     POLYMARKET = "POLYMARKET"
     KALSHI = "KALSHI"
-    PREDICTIT = "PREDICTIT"
-    UNKNOWN = "UNKNOWN"
 
 
 class MarketStatus(StrEnum):
@@ -32,7 +30,6 @@ class MarketType(StrEnum):
     SCALAR = "SCALAR"
     PARLAY = "PARLAY"
     PERPETUAL = "PERPETUAL"
-    UNKNOWN = "UNKNOWN"
 
 
 class ResolutionType(StrEnum):
@@ -44,6 +41,16 @@ class ResolutionType(StrEnum):
 class OrderSide(StrEnum):
     BUY = "BUY"
     SELL = "SELL"
+
+
+class OrderbookState(StrEnum):
+    VERIFIED = "VERIFIED"
+    INTERMEDIATE = "INTERMEDIATE"
+
+
+class OrderbookContinuity(StrEnum):
+    CONTIGUOUS = "CONTIGUOUS"
+    RESET = "RESET"
 
 
 class ProbalyticsModel(BaseModel):
@@ -68,6 +75,8 @@ class Resolution(ProbalyticsModel):
     outcome_payouts: list[OutcomePayout] = Field(default_factory=list)
     resolved_by: str = ""
     resolved_at: datetime | None = None
+    source_block_number: int | None = None
+    source_tx_hash: str | None = None
 
 
 class Market(ProbalyticsModel):
@@ -82,7 +91,7 @@ class Market(ProbalyticsModel):
     description: str = ""
     category: str = ""
     tags: list[str] = Field(default_factory=list)
-    market_type: MarketType = MarketType.UNKNOWN
+    market_type: MarketType
     outcomes: list[Outcome] = Field(default_factory=list)
     status: MarketStatus
     created_at: datetime
@@ -92,6 +101,9 @@ class Market(ProbalyticsModel):
     end_date: datetime | None = None
     reset_at: datetime | None = None
     resolution: Resolution | None = None
+    source_block_number: int = 0
+    source_tx_hash: str = ""
+    indexed_at: datetime
 
     def fills(
         self,
@@ -143,6 +155,8 @@ class Market(ProbalyticsModel):
         start_time: datetime | str,
         end_time: datetime | str,
         client: Any | None = None,
+        state: str | list[str] | None = None,
+        continuity: str | list[str] | None = None,
         limit: int = 1000,
         frame: FrameKind | None = None,
     ) -> Any:
@@ -150,6 +164,8 @@ class Market(ProbalyticsModel):
             market=self,
             start_time=start_time,
             end_time=end_time,
+            state=state,
+            continuity=continuity,
             limit=limit,
             frame=frame,
         )
@@ -183,7 +199,12 @@ class Fill(ProbalyticsModel):
     taker_id: str | None = None
     maker_id: str | None = None
     fee: Decimal
+    source_block_number: int | None = None
+    source_tx_hash: str | None = None
+    source_log_index: int | None = None
     timestamp: datetime
+    indexed_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class BookLevel(ProbalyticsModel):
@@ -199,6 +220,11 @@ class OrderbookSnapshot(ProbalyticsModel):
     bids: list[BookLevel] = Field(default_factory=list)
     asks: list[BookLevel] = Field(default_factory=list)
     timestamp: datetime
+    indexed_at: datetime
+    hash: int
+    state: OrderbookState
+    continuity: OrderbookContinuity
+    path_index: int
 
 
 def model_records(models: list[ProbalyticsModel]) -> list[dict[str, Any]]:

@@ -133,6 +133,7 @@ def test_fills_dataframe_uses_global_frame_and_market_id_arrays(client: Probalyt
     assert isinstance(fills, pd.DataFrame)
     assert set(fills["market_platform_id"]) == {"0xmarket", "KXBTC-26JUN-T50000"}
     assert set(fills["platform"]) == {"POLYMARKET", "KALSHI"}
+    assert all(value == {} for value in fills["metadata"])
     assert isinstance(fills.loc[0, "outcome"], dict)
     assert set(fills.loc[0, "outcome"]) == {"id", "platform_id", "name", "index"}
     assert isinstance(fills.loc[0, "outcome"]["id"], str)
@@ -169,6 +170,8 @@ def test_orderbook_snapshots_accept_market_platform_id_arrays(client: Probalytic
         end_time="2026-03-15T00:02:00Z",
         platform=["POLYMARKET", "KALSHI"],
         market_platform_id=["0xmarket", "KXBTC-26JUN-T50000"],
+        state="VERIFIED",
+        continuity=["RESET", "CONTIGUOUS"],
         limit=10,
     )
 
@@ -178,6 +181,9 @@ def test_orderbook_snapshots_accept_market_platform_id_arrays(client: Probalytic
     assert isinstance(snapshots.loc[0, "outcome"]["id"], str)
     assert isinstance(snapshots.loc[0, "bids"], list)
     assert isinstance(snapshots.loc[0, "bids"][0], dict)
+    assert set(snapshots["state"]) == {"VERIFIED"}
+    assert set(snapshots["continuity"]) == {"RESET", "CONTIGUOUS"}
+    assert set(snapshots.columns) >= {"indexed_at", "hash", "state", "continuity", "path_index"}
 
 
 def wait_for_clickhouse(host: str, port: int) -> DriverClient:
