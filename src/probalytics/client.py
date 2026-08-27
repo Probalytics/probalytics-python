@@ -174,6 +174,8 @@ class ProbalyticsClient:
         market: Market | str | UUID | None = None,
         market_id: IDFilter = None,
         market_platform_id: StringFilter = None,
+        state: StringFilter = None,
+        continuity: StringFilter = None,
         frame: FrameKind | None = None,
         **filters: Any,
     ) -> Any:
@@ -184,6 +186,8 @@ class ProbalyticsClient:
             market=market,
             market_id=market_id,
             market_platform_id=market_platform_id,
+            state=state,
+            continuity=continuity,
             frame=validate_frame(frame or self.frame),
             **filters,
         )

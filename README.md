@@ -186,7 +186,13 @@ book = market.orderbook_snapshots(
 )
 ```
 
-Snapshots include market identifiers, outcome, bids, asks, and timestamp.
+Each snapshot is a complete replacement book for one outcome. Rows include
+`indexed_at`, `hash`, `state`, `continuity`, and `path_index` in addition to the
+market identifiers, outcome, bids, asks, and source timestamp.
+
+Use `state="VERIFIED"` when you only need books reconstructed without gaps. Use
+`continuity` separately to distinguish rows connected to the preceding
+published state from fresh starting points.
 
 ## Choose Polars or pandas
 
@@ -271,6 +277,8 @@ directly into SQL strings.
 - `market`
 - `market_id` or list of market IDs
 - `market_platform_id` or list of market platform IDs
+- `state` or list of states
+- `continuity` or list of continuity values
 - `limit`
 
 ## Local Development
