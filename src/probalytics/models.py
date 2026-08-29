@@ -49,6 +49,7 @@ class OrderbookState(StrEnum):
 
 
 class OrderbookContinuity(StrEnum):
+    UNKNOWN = "UNKNOWN"
     CONTIGUOUS = "CONTIGUOUS"
     RESET = "RESET"
 
