@@ -145,6 +145,10 @@ fills = client.fills(
 Use a market selector or a bounded time range when querying fills. This keeps
 queries fast and avoids scanning more data than you need.
 
+`start_time` / `end_time` filter `timestamp` (the exchange time) on `fills` and
+`orderbook_snapshots`, and `created_at` on `markets` — a market created months
+ago still returns today's fills.
+
 Filter by participant or taker side:
 
 ```python
@@ -190,9 +194,16 @@ Each snapshot is a complete replacement book for one outcome. Rows include
 `indexed_at`, `hash`, `state`, `continuity`, and `path_index` in addition to the
 market identifiers, outcome, bids, asks, and source timestamp.
 
-Use `state="VERIFIED"` when you only need books reconstructed without gaps. Use
-`continuity` separately to distinguish rows connected to the preceding
-published state from fresh starting points.
+`state` is `VERIFIED` or `INTERMEDIATE`. `continuity` is `CONTIGUOUS` (the
+transition from the previous book was provable), `RESET` (it was not — the first
+state of a book is deliberately `RESET`), or `UNKNOWN` for rows predating
+continuity tracking. Several distinct states can share one millisecond; `hash`
+separates them and `path_index` orders them within a recovered path.
+
+Note that these columns were added to the warehouse in August 2026. Rows written
+before then read the column default rather than a measured value: `hash` is 0
+before 2026-08-02, `state` reads `VERIFIED` before 2026-08-21, and `continuity`
+reads `UNKNOWN` before 2026-08-22.
 
 ## Choose Polars or pandas
 
@@ -228,6 +239,8 @@ Use `query()` for read-only ClickHouse queries when the convenience methods do
 not cover your use case.
 
 ```python
+from datetime import datetime, timezone
+
 df = client.query(
     """
     SELECT platform, count() AS fills
@@ -236,14 +249,23 @@ df = client.query(
     GROUP BY platform
     ORDER BY fills DESC
     """,
-    parameters={"start_time": "2026-03-15T00:00:00Z"},
+    parameters={"start_time": datetime(2026, 3, 15, tzinfo=timezone.utc)},
 )
 ```
 
 Always pass user-provided values through `parameters` instead of formatting them
 directly into SQL strings.
 
+Unlike the convenience methods, `query()` passes parameters straight to
+ClickHouse — it does not parse date strings for you. Pass a `datetime`, or a
+string ClickHouse accepts such as `"2026-03-15 00:00:00"`. An ISO string with a
+trailing `Z` is rejected by the server.
+
 ## Supported Filters
+
+Every method returns at most `limit` rows, and **`limit` defaults to 1000**.
+Raise it explicitly when you want more than that — results are truncated
+silently, not flagged.
 
 `markets()` and `markets_frame()` support:
 
@@ -271,8 +293,8 @@ directly into SQL strings.
 
 `orderbook_snapshots()` supports:
 
-- `start_time`
-- `end_time`
+- `start_time` (**required**)
+- `end_time` (**required**)
 - `platform` or list of platforms
 - `market`
 - `market_id` or list of market IDs

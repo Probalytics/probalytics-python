@@ -34,7 +34,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "clickhouse-driver>=0.2.10",
+    # The client defaults to compression="lz4"; the codec lives in the driver's
+    # lz4 extra, so a bare clickhouse-driver install fails at connect time.
+    "clickhouse-driver[lz4]>=0.2.10",
     "polars>=1",
     "pydantic>=2",
 ]
