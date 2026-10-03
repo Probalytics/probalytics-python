@@ -72,7 +72,8 @@ def test_public_enums_only_include_current_values() -> None:
         MarketType("UNKNOWN")
 
 
-def test_orderbook_snapshot_models_current_quality_fields() -> None:
+@pytest.mark.parametrize("continuity", ["RESET", "CONTIGUOUS", "UNKNOWN"])
+def test_orderbook_snapshot_models_current_quality_fields(continuity: str) -> None:
     snapshot = OrderbookSnapshot.model_validate(
         {
             "market_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -90,13 +91,13 @@ def test_orderbook_snapshot_models_current_quality_fields() -> None:
             "indexed_at": "2026-03-15T00:00:00.001Z",
             "hash": 101,
             "state": "VERIFIED",
-            "continuity": "RESET",
+            "continuity": continuity,
             "path_index": 0,
         }
     )
 
     assert snapshot.state == "VERIFIED"
-    assert snapshot.continuity == "RESET"
+    assert snapshot.continuity == continuity
     assert snapshot.hash == 101
     assert snapshot.path_index == 0
 
