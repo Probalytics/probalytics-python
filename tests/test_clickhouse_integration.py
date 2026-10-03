@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import datetime, timezone
 
 import pandas as pd
 import polars as pl
@@ -58,7 +59,6 @@ def client(clickhouse_config) -> ProbalyticsClient:
         password=PASSWORD,
         database=DATABASE,
         secure=False,
-        compression=False,
         frame="pandas",
     )
 
@@ -80,6 +80,21 @@ def test_sample_data_matches_production_shapes(client: ProbalyticsClient) -> Non
         "markets": len(MARKET_ROWS),
         "orderbook_snapshots": len(ORDERBOOK_SNAPSHOT_ROWS),
     }
+
+
+@pytest.mark.parametrize(
+    "start_time",
+    [datetime(2026, 3, 15, tzinfo=timezone.utc), "2026-03-15 00:00:00"],
+)
+def test_query_accepts_documented_time_parameters(
+    client: ProbalyticsClient, start_time: datetime | str
+) -> None:
+    result = client.query(
+        "SELECT count() AS rows FROM fills WHERE timestamp >= %(start_time)s",
+        parameters={"start_time": start_time},
+    )
+
+    assert result["rows"].iloc[0] == len(FILL_ROWS)
 
 
 def test_markets_filters_accept_arrays_against_clickhouse(client: ProbalyticsClient) -> None:
