@@ -5,9 +5,17 @@ from uuid import UUID
 
 import pytest
 
-from probalytics import ClickHouseClient, Market, ProbalyticsClient
+from probalytics import (
+    ClickHouseClient,
+    Market,
+    MarketType,
+    OrderbookSnapshot,
+    Platform,
+    ProbalyticsClient,
+)
 from probalytics._frames import dataframe_to_frame, normalize_time
 from probalytics._filters import market_filter
+from probalytics.clickhouse import _fill_row
 
 
 def market_payload() -> dict:
@@ -38,6 +46,9 @@ def market_payload() -> dict:
         "end_date": None,
         "reset_at": None,
         "resolution": None,
+        "source_block_number": 0,
+        "source_tx_hash": "",
+        "indexed_at": "2026-03-15T00:00:01Z",
     }
 
 
@@ -49,6 +60,45 @@ def test_market_is_first_class_filter() -> None:
     assert str(market_id) == market_payload()["id"]
     assert market_platform_id == "0xmarket"
     assert platform == "POLYMARKET"
+
+
+def test_public_enums_only_include_current_values() -> None:
+    assert set(Platform) == {Platform.POLYMARKET, Platform.KALSHI}
+    assert MarketType.PERPETUAL == "PERPETUAL"
+
+    with pytest.raises(ValueError):
+        Platform("PREDICTIT")
+    with pytest.raises(ValueError):
+        MarketType("UNKNOWN")
+
+
+def test_orderbook_snapshot_models_current_quality_fields() -> None:
+    snapshot = OrderbookSnapshot.model_validate(
+        {
+            "market_id": "550e8400-e29b-41d4-a716-446655440000",
+            "market_platform_id": "0xmarket",
+            "platform": "POLYMARKET",
+            "outcome": {
+                "id": "550e8400-e29b-41d4-a716-446655440001",
+                "platform_id": "yes",
+                "name": "Yes",
+                "index": 0,
+            },
+            "bids": [{"price": "0.44", "size": "10"}],
+            "asks": [{"price": "0.46", "size": "8"}],
+            "timestamp": "2026-03-15T00:00:00Z",
+            "indexed_at": "2026-03-15T00:00:00.001Z",
+            "hash": 101,
+            "state": "VERIFIED",
+            "continuity": "RESET",
+            "path_index": 0,
+        }
+    )
+
+    assert snapshot.state == "VERIFIED"
+    assert snapshot.continuity == "RESET"
+    assert snapshot.hash == 101
+    assert snapshot.path_index == 0
 
 
 def test_dataframe_to_polars_preserves_struct() -> None:
@@ -150,6 +200,8 @@ def test_market_can_query_orderbook_snapshots_with_bound_client() -> None:
     snapshots = market.orderbook_snapshots(
         start_time="2026-03-15T00:00:00Z",
         end_time="2026-03-15T00:01:00Z",
+        state="VERIFIED",
+        continuity="RESET",
         frame="pandas",
     )
 
@@ -157,6 +209,8 @@ def test_market_can_query_orderbook_snapshots_with_bound_client() -> None:
     assert backend.orderbook_kwargs["market"] is market
     assert backend.orderbook_kwargs["start_time"] == "2026-03-15T00:00:00Z"
     assert backend.orderbook_kwargs["end_time"] == "2026-03-15T00:01:00Z"
+    assert backend.orderbook_kwargs["state"] == "VERIFIED"
+    assert backend.orderbook_kwargs["continuity"] == "RESET"
     assert backend.orderbook_kwargs["frame"] == "pandas"
 
 
@@ -328,6 +382,48 @@ def test_fills_keeps_scalar_filters_as_equals() -> None:
     assert "platform = %(platform)s" in client.client.query
     assert client.client.params["market_platform_id"] == "0xmarket"
     assert client.client.params["platform"] == "POLYMARKET"
+
+
+def test_fills_selects_provenance_and_metadata() -> None:
+    client = clickhouse_with_recorder()
+
+    client.fills(limit=10)
+
+    assert "source_block_number, source_tx_hash, source_log_index" in client.client.query
+    assert "timestamp, indexed_at, toJSONString(metadata) AS metadata" in client.client.query
+
+
+def test_fill_row_decodes_json_metadata() -> None:
+    row = {
+        "outcome": {
+            "id": "550e8400-e29b-41d4-a716-446655440001",
+            "platform_id": "yes",
+            "name": "Yes",
+            "index": 0,
+        },
+        "metadata": '{"instrument":"BTC","liquidation":false}',
+    }
+
+    assert _fill_row(row)["metadata"] == {"instrument": "BTC", "liquidation": False}
+
+
+def test_orderbook_snapshots_select_quality_fields_and_filters() -> None:
+    client = clickhouse_with_recorder()
+
+    client.orderbook_snapshots(
+        start_time="2026-03-15T00:00:00Z",
+        end_time="2026-03-15T00:01:00Z",
+        state=["VERIFIED", "INTERMEDIATE"],
+        continuity="RESET",
+        limit=10,
+    )
+
+    assert "indexed_at, hash, state, continuity, path_index" in client.client.query
+    assert "state IN %(state)s" in client.client.query
+    assert "continuity = %(continuity)s" in client.client.query
+    assert "ORDER BY timestamp ASC, path_index ASC, indexed_at ASC" in client.client.query
+    assert client.client.params["state"] == ("VERIFIED", "INTERMEDIATE")
+    assert client.client.params["continuity"] == "RESET"
 
 
 def test_clickhouse_rejects_invalid_limits() -> None:

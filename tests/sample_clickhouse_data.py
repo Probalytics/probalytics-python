@@ -82,6 +82,10 @@ ORDERBOOK_SNAPSHOT_COLUMNS = (
     "asks",
     "timestamp",
     "indexed_at",
+    "hash",
+    "state",
+    "continuity",
+    "path_index",
 )
 
 MARKET_ROWS = [
@@ -159,7 +163,7 @@ FILL_ROWS = [
         Decimal("0.45"),
         Decimal("0.45"),
         "BUY",
-        Decimal("-4.5"),
+        Decimal("4.5"),
         Decimal("4.5"),
         "trader-a",
         "maker-a",
@@ -182,7 +186,7 @@ FILL_ROWS = [
         Decimal("0.60"),
         "SELL",
         Decimal("3"),
-        Decimal("-3"),
+        Decimal("3"),
         "trader-b",
         "maker-b",
         Decimal("0"),
@@ -204,6 +208,10 @@ ORDERBOOK_SNAPSHOT_ROWS = [
         [(Decimal("0.46"), Decimal("8"))],
         SAMPLE_TIME.replace(second=1),
         SAMPLE_TIME.replace(second=1),
+        101,
+        "VERIFIED",
+        "RESET",
+        0,
     ),
     (
         MARKET_B,
@@ -214,6 +222,10 @@ ORDERBOOK_SNAPSHOT_ROWS = [
         [(Decimal("0.61"), Decimal("6"))],
         SAMPLE_TIME.replace(second=2),
         SAMPLE_TIME.replace(second=2),
+        202,
+        "VERIFIED",
+        "CONTIGUOUS",
+        0,
     ),
 ]
 
@@ -237,7 +249,7 @@ def insert_rows(client: DriverClient, table: str, columns: tuple[str, ...], rows
 CREATE_MARKETS = """
 CREATE TABLE markets (
     id UUID,
-    platform Enum('POLYMARKET', 'KALSHI', 'PREDICTIT', 'UNKNOWN'),
+    platform Enum('POLYMARKET', 'KALSHI'),
     platform_id String,
     slug String,
     url String,
@@ -245,7 +257,7 @@ CREATE TABLE markets (
     description String,
     category LowCardinality(String),
     tags Array(LowCardinality(String)),
-    market_type Enum('UNKNOWN', 'BINARY', 'MULTIPLE', 'SCALAR', 'PARLAY', 'PERPETUAL'),
+    market_type Enum('BINARY', 'MULTIPLE', 'SCALAR', 'PARLAY', 'PERPETUAL'),
     outcomes Array(Tuple(id UUID, platform_id String, name String, index UInt8)),
     created_at DateTime64(3),
     opened_at Nullable(DateTime64(3)),
@@ -273,7 +285,7 @@ CREATE TABLE fills (
     id UUID,
     market_id UUID,
     market_platform_id String,
-    platform Enum('POLYMARKET', 'KALSHI', 'PREDICTIT', 'UNKNOWN'),
+    platform Enum('POLYMARKET', 'KALSHI'),
     platform_id String,
     outcome Tuple(id UUID, platform_id String, name String, index UInt8),
     size Decimal128(18),
@@ -289,7 +301,8 @@ CREATE TABLE fills (
     source_tx_hash Nullable(String),
     source_log_index Nullable(UInt32),
     timestamp DateTime64(6),
-    indexed_at DateTime64(3)
+    indexed_at DateTime64(9),
+    metadata JSON DEFAULT '{}'
 ) ENGINE = ReplacingMergeTree(indexed_at)
 ORDER BY (platform, market_id, timestamp, id)
 PARTITION BY toYYYYMM(timestamp)
@@ -299,13 +312,17 @@ CREATE_ORDERBOOK_SNAPSHOTS = """
 CREATE TABLE orderbook_snapshots (
     market_id UUID,
     market_platform_id String,
-    platform Enum('POLYMARKET', 'KALSHI', 'PREDICTIT', 'UNKNOWN'),
+    platform Enum('POLYMARKET', 'KALSHI'),
     outcome Tuple(id UUID, platform_id String, name String, index UInt8),
     bids Array(Tuple(price Decimal64(6), size Decimal64(6))),
     asks Array(Tuple(price Decimal64(6), size Decimal64(6))),
-    timestamp DateTime64(3),
-    indexed_at DateTime64(3)
+    timestamp DateTime64(9),
+    indexed_at DateTime64(9),
+    hash UInt64,
+    state Enum8('VERIFIED' = 1, 'INTERMEDIATE' = 2),
+    continuity Enum8('CONTIGUOUS' = 1, 'RESET' = 2),
+    path_index UInt32
 ) ENGINE = ReplacingMergeTree(indexed_at)
-ORDER BY (market_id, outcome.id, timestamp)
+ORDER BY (market_id, outcome.id, timestamp, hash, state, continuity, path_index)
 PARTITION BY toYYYYMM(timestamp)
 """

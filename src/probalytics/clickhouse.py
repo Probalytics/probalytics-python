@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
@@ -156,7 +157,9 @@ class ClickHouseClient:
             SELECT
                 id, market_id, market_platform_id, platform, platform_id, outcome,
                 size, price, normalized_price, taker_side, taker_cash_flow,
-                maker_cash_flow, taker_id, maker_id, fee, timestamp
+                maker_cash_flow, taker_id, maker_id, fee,
+                source_block_number, source_tx_hash, source_log_index,
+                timestamp, indexed_at, toJSONString(metadata) AS metadata
             FROM fills
             {where}
             ORDER BY timestamp ASC, id ASC
@@ -176,6 +179,8 @@ class ClickHouseClient:
         market: Market | str | UUID | None = None,
         market_id: IDFilter = None,
         market_platform_id: StringFilter = None,
+        state: StringFilter = None,
+        continuity: StringFilter = None,
         limit: int = 1000,
         frame: FrameKind = "polars",
     ) -> Any:
@@ -188,6 +193,8 @@ class ClickHouseClient:
                 _filter("platform", "platform", platform),
                 _filter("market_id", "market_id", market_id),
                 _filter("market_platform_id", "market_platform_id", market_platform_id),
+                _filter("state", "state", state),
+                _filter("continuity", "continuity", continuity),
             ]
         )
         params["limit"] = limit
@@ -195,10 +202,10 @@ class ClickHouseClient:
             SELECT
                 market_id, market_platform_id, platform,
                 {OUTCOME_FRAME_EXPR} AS outcome,
-                bids, asks, timestamp
+                bids, asks, timestamp, indexed_at, hash, state, continuity, path_index
             FROM orderbook_snapshots
             {where}
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, path_index ASC, indexed_at ASC
             LIMIT %(limit)s
         """
         return self._query_frame(query, params, frame)
@@ -285,7 +292,9 @@ class ClickHouseClient:
                 id, market_id, market_platform_id, platform, platform_id,
                 {OUTCOME_FRAME_EXPR} AS outcome,
                 size, price, normalized_price, taker_side, taker_cash_flow,
-                maker_cash_flow, taker_id, maker_id, fee, timestamp
+                maker_cash_flow, taker_id, maker_id, fee,
+                source_block_number, source_tx_hash, source_log_index,
+                timestamp, indexed_at, toJSONString(metadata) AS metadata
             FROM fills
             {where}
             ORDER BY timestamp ASC, id ASC
@@ -312,6 +321,8 @@ class ClickHouseClient:
             columnar=True,
         )
         data = {column[0]: values for column, values in zip(columns, columns_data, strict=True)}
+        if "metadata" in data:
+            data["metadata"] = [_json_object(value) for value in data["metadata"]]
         return dataframe_to_frame(data, frame)
 
 
@@ -378,6 +389,8 @@ def _market_row(row: dict[str, Any]) -> dict[str, Any]:
             "outcome_payouts": [_outcome_payout(value) for value in row.get("resolution_outcome_payouts") or []],
             "resolved_by": row.get("resolution_resolved_by") or "",
             "resolved_at": row.get("resolution_resolved_at"),
+            "source_block_number": row.get("resolution_source_block_number"),
+            "source_tx_hash": row.get("resolution_source_tx_hash"),
         }
     return {
         "id": row["id"],
@@ -389,7 +402,7 @@ def _market_row(row: dict[str, Any]) -> dict[str, Any]:
         "description": row.get("description", ""),
         "category": row.get("category", ""),
         "tags": row.get("tags", []),
-        "market_type": row.get("market_type", "UNKNOWN"),
+        "market_type": row["market_type"],
         "outcomes": [_outcome(value) for value in row.get("outcomes", [])],
         "status": row["status"],
         "created_at": row["created_at"],
@@ -399,6 +412,9 @@ def _market_row(row: dict[str, Any]) -> dict[str, Any]:
         "end_date": row.get("end_date"),
         "reset_at": row.get("reset_at"),
         "resolution": resolution,
+        "source_block_number": row.get("source_block_number", 0),
+        "source_tx_hash": row.get("source_tx_hash", ""),
+        "indexed_at": row["indexed_at"],
     }
 
 
@@ -406,7 +422,17 @@ def _fill_row(row: dict[str, Any]) -> dict[str, Any]:
     return {
         **row,
         "outcome": _outcome(row["outcome"]),
+        "metadata": _json_object(row.get("metadata")),
     }
+
+
+def _json_object(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
 
 
 def _outcome(value: Any) -> dict[str, Any]:
