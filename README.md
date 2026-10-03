@@ -263,7 +263,7 @@ trailing `Z` is rejected by the server.
 
 ## Supported Filters
 
-Every method returns at most `limit` rows, and **`limit` defaults to 1000**.
+The convenience methods return at most `limit` rows, and **`limit` defaults to 1000**.
 Raise it explicitly when you want more than that — results are truncated
 silently, not flagged.
 
